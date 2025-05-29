@@ -480,34 +480,30 @@
 
 %%% ---------------------- 绝对页 ---------------------- %%%
 \makeatletter
-\def\getzrefabspage#1{\zref@extract{#1}{abspage}}
-\def\getzrefpage#1{\zref@ifrefundefined{#1}{0}{\zref@extract{#1}{page}}} % 同样需要检查是否存在
 
 \newcommand{\ifoddabspage}[3]{%
   \begingroup
-    \edef\temp{\getzrefabspage{#1}}%
+    \edef\temp{\zref@extract{#1}{abspage}}%
     \count0=\numexpr\temp\relax
-    % Debug: 这是 \temp, \the\count0 页
     \ifx\temp\empty
+      \endgroup
       % error: label #1 not found
     \else
       \ifodd\count0
-        % Debug: 这是奇数内容,\the\count0 页
+        \endgroup
         #2% odd
       \else
-        % Debug: 这是偶数内容,\the\count0 页
+        \endgroup
         #3% even
       \fi
     \fi
-  \endgroup
 }
 
-\newcounter{tempabspagelabel} % 定义计数器
+\newcounter{tempabspagelabel}
 \newcommand{\ifthisoddabspage}[2]{%
   \stepcounter{tempabspagelabel}%
   \edef\temp@labelname{here:temp-label-\thetempabspagelabel}% 自动生成唯一 label
   \zlabel{\temp@labelname}%
-  % Debug: 这是\temp@labelname：\getzrefabspage{\temp@labelname}页内容
   \ifoddabspage{\temp@labelname}{#1}{#2}
 }
 \makeatother
@@ -524,38 +520,6 @@
 % 带页眉页脚
 \NewEnviron{fancyPage}[1][]{
   \clearpage
-  \thispagestyle{fancy}
-  \BODY
-  \clearpage
-}
-
-% 带页眉页脚的标题页
-%\NewEnviron{fancytitlePage}[1][]{
-%	\clearpage
-%	\ifodd\value{page}
-%	\else
-%	\thispagestyle{empty}
-%	\null
-%	\clearpage
-%	\begingroup
-%	\setcounter{page}{\numexpr\value{page}-1\relax}
-%	\endgroup
-%	\fi
-%	\thispagestyle{fancy}
-%	\BODY
-%	\clearpage
-%}
-
-\NewEnviron{fancytitlePage}[1][]{
-  \ifthisoddabspage{}{% even
-    \thispagestyle{empty}
-    \null
-    \clearpage
-    \begingroup
-      \setcounter{page}{\numexpr\value{page}-1\relax}
-    \endgroup
-  }
-  
   \thispagestyle{fancy}
   \BODY
   \clearpage
@@ -945,22 +909,32 @@
 \newcommand{\swjtuAbstractCN}[1][]{%
   \setkeys{swjtu/abstractCN}{#1}
 
-  \begin{fancytitlePage}
-    % 标题
-    \CustomChapter*[\swjtu@pageStyle@otherTitleBeforeSpace][\swjtu@pageStyle@otherTitleAfterSpace]{摘\swjtu@pageStyle@absTitleSpace 要}
+  \clearpage
+  \ifthisoddabspage{}{
+    \thispagestyle{empty}
+    \null
+    \clearpage
+    \begingroup
+      \setcounter{page}{\numexpr\value{page}-1\relax}
+    \endgroup
+  }
+  
+	
+  % 标题
+  \CustomChapter*[\swjtu@pageStyle@otherTitleBeforeSpace][\swjtu@pageStyle@otherTitleAfterSpace]{摘\swjtu@pageStyle@absTitleSpace 要}
 
-    % 摘要正文
-    \swjtu@abstractCN@abstract
+  % 摘要正文
+  \swjtu@abstractCN@abstract
 
-    % 空行
-    \vspace{\baselineskip}
+  % 空行
+  \vspace{\baselineskip}
 
-    % 关键词
-    {\heiti
-      \noindent
-      关键词：\hspace{0em} \songti \swjtu@abstractCN@keywords
-    }
-  \end{fancytitlePage}
+  % 关键词
+  {\heiti
+    \noindent
+    关键词：\hspace{0em} \songti \swjtu@abstractCN@keywords
+  }
+  
 }
 \makeatother
 
@@ -1066,10 +1040,11 @@
 %%% ======================= 正文 ======================= %%%
 
 \newcommand{\swjtuIntroduction}[1]{
-  \ifthisoddabspage{}{% even
-	\thispagestyle{empty}
-	\null
-	\clearpage
+  \clearpage
+  \ifthisoddabspage{}{
+      \thispagestyle{empty}
+      \null
+      \clearpage
   }
   \pagenumbering{arabic} % 重置页码
   \chapter{#1}
