@@ -28,9 +28,12 @@
 \RequirePackage{algorithmic} % 伪代码
 \RequirePackage{xstring}     % 用于 \IfEqCase 判断
 
+% 获取绝对页码
+\RequirePackage[user,abspage]{zref} 
+
 % 参考文献处理
 \RequirePackage[
-  style=gb7714-2015
+  style=gb7714-2015,
 ]{biblatex}
 
 % 超链接
@@ -130,6 +133,8 @@
   top=2.6cm, bottom=2.6cm
 }
 
+\raggedbottom % 禁用行距拉伸，允许页面底部留白
+
 %%% ------------------- 放宽断行策略 ------------------- %%%
 \pretocmd{\section}{\sloppy}{}{}
 \pretocmd{\subsection}{\sloppy}{}{}
@@ -217,14 +222,34 @@
 %%% ===================== 参考文献 ===================== %%%
 \addbibresource{bibliography/references.bib}
 
+% 定义名字格式
+\DeclareNameFormat{family-given-init}{%
+	\MakeCapital{\namepartfamily}% 姓氏首字母大写
+	\ifblank{\namepartgiveni}{}{%
+		\addspace\namepartgiveni}% 如果有名字缩写，添加空格和缩写（带点）
+	\ifnumequal{\value{listcount}}{\value{liststop}}{}{%
+		\addcomma\space}% 不是最后一个作者时，添加逗号和空格
+	\usebibmacro{name:andothers}% 处理“et al.”等情况
+}
+
+% 将此格式应用到 author 和 editor
+\DeclareNameAlias{author}{family-given-init}
+\DeclareNameAlias{editor}{family-given-init}
+
+% 2. 文献名一般仅第一个单词首字母大写
+\DeclareFieldFormat*{titlecase}{\MakeSentenceCase{#1}}
+
 %%% ===================== 公式图表 ===================== %%%
 \renewcommand{\theequation}{\thechapter-\arabic{equation}}
 \renewcommand{\thefigure}{\thechapter-\arabic{figure}}
 \renewcommand{\thetable}{\thechapter-\arabic{table}}
 \renewcommand{\thealgorithm}{\thechapter-\arabic{algorithm}}
 % \renewcommand{\thelstlisting}{\thechapter-\arabic{lstlisting}}
-\captionsetup[figure]{labelsep=space}
-\captionsetup[table]{labelsep=space}
+\captionsetup[figure]{labelsep=space, font=small}
+\captionsetup[table]{labelsep=space, font=small}
+
+%\setlength{\abovedisplayskip}{0pt plus 5pt minus 0pt}
+%\setlength{\belowdisplayskip}{0pt plus 5pt minus 0pt}
 
 %%% ===================== 标题间距 ===================== %%%
 \makeatletter
@@ -426,6 +451,8 @@
 
 %%% ----------------------- 列表 ----------------------- %%%
 \newlist{explainSymbol}{itemize}{1}
+\setlist[enumerate]{nosep}
+\setlist[itemize]{nosep}
 \setlist[description]{
   labelindent=2em,
   labelsep=1em,
@@ -451,6 +478,40 @@
   \rlap{\(\Box\)}{\raisebox{0.1em}{\hspace{-0.1em}\(\surd\)}}
 }
 
+%%% ---------------------- 绝对页 ---------------------- %%%
+\makeatletter
+\def\getzrefabspage#1{\zref@extract{#1}{abspage}}
+\def\getzrefpage#1{\zref@ifrefundefined{#1}{0}{\zref@extract{#1}{page}}} % 同样需要检查是否存在
+
+\newcommand{\ifoddabspage}[3]{%
+  \begingroup
+    \edef\temp{\getzrefabspage{#1}}%
+    \count0=\numexpr\temp\relax
+    % Debug: 这是 \temp, \the\count0 页
+    \ifx\temp\empty
+      % error: label #1 not found
+    \else
+      \ifodd\count0
+        % Debug: 这是奇数内容,\the\count0 页
+        #2% odd
+      \else
+        % Debug: 这是偶数内容,\the\count0 页
+        #3% even
+      \fi
+    \fi
+  \endgroup
+}
+
+\newcounter{tempabspagelabel} % 定义计数器
+\newcommand{\ifthisoddabspage}[2]{%
+  \stepcounter{tempabspagelabel}%
+  \edef\temp@labelname{here:temp-label-\thetempabspagelabel}% 自动生成唯一 label
+  \zlabel{\temp@labelname}%
+  % Debug: 这是\temp@labelname：\getzrefabspage{\temp@labelname}页内容
+  \ifoddabspage{\temp@labelname}{#1}{#2}
+}
+\makeatother
+
 %%% ---------------------- 空白页 ---------------------- %%%
 % 空
 \NewEnviron{emptyPage}[1][]{
@@ -469,8 +530,32 @@
 }
 
 % 带页眉页脚的标题页
+%\NewEnviron{fancytitlePage}[1][]{
+%	\clearpage
+%	\ifodd\value{page}
+%	\else
+%	\thispagestyle{empty}
+%	\null
+%	\clearpage
+%	\begingroup
+%	\setcounter{page}{\numexpr\value{page}-1\relax}
+%	\endgroup
+%	\fi
+%	\thispagestyle{fancy}
+%	\BODY
+%	\clearpage
+%}
+
 \NewEnviron{fancytitlePage}[1][]{
-  \cleardoublepage
+  \ifthisoddabspage{}{% even
+    \thispagestyle{empty}
+    \null
+    \clearpage
+    \begingroup
+      \setcounter{page}{\numexpr\value{page}-1\relax}
+    \endgroup
+  }
+  
   \thispagestyle{fancy}
   \BODY
   \clearpage
@@ -873,7 +958,7 @@
     % 关键词
     {\heiti
       \noindent
-      关键词：\hspace{1em}\swjtu@abstractCN@keywords
+      关键词：\hspace{0em} \songti \swjtu@abstractCN@keywords
     }
   \end{fancytitlePage}
 }
@@ -896,7 +981,7 @@
 
     % 关键词
     \noindent
-    Key words:\hspace{1em}\swjtu@abstractEN@keywords
+    \textbf{Keywords:}\hspace{0em}\swjtu@abstractEN@keywords
   \end{fancyPage}
 }
 \makeatother
@@ -979,8 +1064,13 @@
 \makeatother
 
 %%% ======================= 正文 ======================= %%%
+
 \newcommand{\swjtuIntroduction}[1]{
-  \cleardoublepage
+  \ifthisoddabspage{}{% even
+	\thispagestyle{empty}
+	\null
+	\clearpage
+  }
   \pagenumbering{arabic} % 重置页码
   \chapter{#1}
 } % 绪论章节
